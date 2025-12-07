@@ -1,11 +1,13 @@
 import React, { useState, useRef } from 'react';
 import Navbar from '../Components/Navbar';
+import FlashMessage from '../Components/FlashMessage';
 
 export default function Dashboard() {
   const [uploadedFile, setUploadedFile] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
   const [convertedFile, setConvertedFile] = useState(null);
+  const [flashMessage, setFlashMessage] = useState(null);
   const fileInputRef = useRef(null);
 
   const handleFileSelect = (file) => {
@@ -16,8 +18,12 @@ export default function Dashboard() {
         file: file
       });
       setConvertedFile(null);
+      setFlashMessage(null);
     } else {
-      alert('Please upload a PDF file');
+      setFlashMessage({
+        message: 'Please upload a PDF file',
+        type: 'error'
+      });
     }
   };
 
@@ -76,6 +82,15 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/30 to-slate-100">
       <Navbar />
+      
+      {/* Flash Message */}
+      {flashMessage && (
+        <FlashMessage
+          message={flashMessage.message}
+          type={flashMessage.type}
+          onClose={() => setFlashMessage(null)}
+        />
+      )}
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         {/* Header */}
