@@ -1,6 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Navbar from '../Components/Navbar';
 import FlashMessage from '../Components/FlashMessage';
+import axiosInstance from '../services/axiosInstance';
 
 export default function Dashboard() {
   const [uploadedFile, setUploadedFile] = useState(null);
@@ -10,8 +11,22 @@ export default function Dashboard() {
   const [flashMessage, setFlashMessage] = useState(null);
   const fileInputRef = useRef(null);
 
+  // Cleanup blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (convertedFile?.downloadUrl) {
+        window.URL.revokeObjectURL(convertedFile.downloadUrl);
+      }
+    };
+  }, [convertedFile]);
+
   const handleFileSelect = (file) => {
     if (file && file.type === 'application/pdf') {
+      // Clean up previous blob URL if exists
+      if (convertedFile?.downloadUrl) {
+        window.URL.revokeObjectURL(convertedFile.downloadUrl);
+      }
+      
       setUploadedFile({
         name: file.name,
         size: file.size,
@@ -53,14 +68,68 @@ export default function Dashboard() {
     if (!uploadedFile) return;
     
     setIsConverting(true);
-    // Simulate conversion process
-    setTimeout(() => {
-      setIsConverting(false);
-      setConvertedFile({
-        name: uploadedFile.name.replace('.pdf', '.xlsx'),
-        downloadUrl: '#'
+    setFlashMessage(null);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', uploadedFile.file);
+
+      // First, upload the file and print details
+      console.log('Uploading PDF file...');
+      const uploadResponse = await axiosInstance.post('/api/pdf/upload', formData);
+      
+      // Print upload details
+      console.log('\n' + '='.repeat(60));
+      console.log('PDF UPLOAD DETAILS');
+      console.log('='.repeat(60));
+      console.log('Message:', uploadResponse.data.message);
+      if (uploadResponse.data.file_info) {
+        console.log('\nFile Information:');
+        console.log('  Filename:', uploadResponse.data.file_info.filename);
+        console.log('  Size:', uploadResponse.data.file_info.size, 'bytes');
+        console.log('  Size (KB):', uploadResponse.data.file_info.size_kb, 'KB');
+        console.log('  Content Type:', uploadResponse.data.file_info.content_type);
+        console.log('  Uploaded At:', uploadResponse.data.file_info.uploaded_at);
+        console.log('  Number of Pages:', uploadResponse.data.file_info.num_pages);
+        console.log('  Tables Found:', uploadResponse.data.file_info.tables_found);
+        console.log('  Content Length:', uploadResponse.data.file_info.content_length, 'characters');
+      }
+      console.log('='.repeat(60) + '\n');
+
+      // Then, convert to Excel
+      console.log('Converting PDF to Excel...');
+      const convertResponse = await axiosInstance.post('/api/pdf/convert', formData, {
+        responseType: 'blob', // Important for file downloads
       });
-    }, 2000);
+
+      // Create a blob URL for the Excel file
+      const blob = new Blob([convertResponse.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+      const excelFileName = uploadedFile.name.replace('.pdf', '.xlsx');
+      
+      // Create a blob URL for download button (keep it alive for manual download)
+      const downloadUrl = window.URL.createObjectURL(blob);
+
+      setConvertedFile({
+        name: excelFileName,
+        downloadUrl: downloadUrl,
+        blob: blob // Store blob for download
+      });
+
+      setFlashMessage({
+        message: 'PDF converted to Excel successfully!',
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('Conversion error:', error);
+      setFlashMessage({
+        message: error.response?.data?.error || 'Failed to convert PDF to Excel. Please try again.',
+        type: 'error'
+      });
+    } finally {
+      setIsConverting(false);
+    }
   };
 
   const handleRemoveFile = () => {
@@ -253,9 +322,15 @@ export default function Dashboard() {
                   <p className="text-sm text-slate-600">{convertedFile.name}</p>
                 </div>
               </div>
-              <a
-                href={convertedFile.downloadUrl}
-                download={convertedFile.name}
+              <button
+                onClick={() => {
+                  const link = document.createElement('a');
+                  link.href = convertedFile.downloadUrl;
+                  link.download = convertedFile.name;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                }}
                 className="px-6 py-2 bg-gradient-to-r from-indigo-600 to-slate-700 hover:from-indigo-700 hover:to-slate-800 text-white rounded-lg transition-all duration-200 font-medium flex items-center gap-2"
               >
                 <svg
@@ -272,7 +347,7 @@ export default function Dashboard() {
                   />
                 </svg>
                 Download Excel
-              </a>
+              </button>
             </div>
           </div>
         )}

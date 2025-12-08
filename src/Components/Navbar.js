@@ -1,8 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
+import { AuthContext } from '../Context/AuthContext';
 
 export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { logout } = useContext(AuthContext);
+
+  const handleLogout = () => {
+    setIsMobileMenuOpen(false);
+    logout();
+  };
 
   return (
     <nav className="bg-gradient-to-r from-indigo-600 to-slate-700 shadow-lg">
@@ -34,12 +41,12 @@ export default function Navbar() {
             >
               Dashboard
             </Link>
-            <Link
-              to="/login"
+            <button
+              onClick={handleLogout}
               className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors duration-200 font-medium backdrop-blur-sm border border-white/30"
             >
               Logout
-            </Link>
+            </button>
           </div>
 
           {/* Mobile Menu Button */}
@@ -103,10 +110,9 @@ export default function Navbar() {
             >
               Dashboard
             </Link>
-            <Link
-              to="/login"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`block px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-all duration-200 font-medium backdrop-blur-sm border border-white/30 text-center transform ${
+            <button
+              onClick={handleLogout}
+              className={`block w-full px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-all duration-200 font-medium backdrop-blur-sm border border-white/30 text-center transform ${
                 isMobileMenuOpen
                   ? 'translate-x-0 opacity-100'
                   : '-translate-x-4 opacity-0'
@@ -116,7 +122,7 @@ export default function Navbar() {
               }}
             >
               Logout
-            </Link>
+            </button>
           </div>
         </div>
       </div>

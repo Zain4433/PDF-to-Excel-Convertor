@@ -35,10 +35,16 @@ const AuthProvider = ({ children }) => {
 
     const register = async (userData) => {
         setIsLoading(true);
-        await authService.register(userData);
-        const registeredUser = await authService.getUser();
-        setUser(registeredUser);
-        setIsLoading(false);
+        try {
+            const response = await authService.register(userData);
+            const registeredUser = await authService.getUser();
+            setUser(registeredUser);
+            setIsLoading(false);
+            return response;
+        } catch (error) {
+            setIsLoading(false);
+            throw error;
+        }
     };
 
     const googleLogin = async (credentialResponse) => {

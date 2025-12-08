@@ -1,12 +1,17 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useContext } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { AuthContext } from '../Context/AuthContext';
+import FlashMessage from '../Components/FlashMessage';
 
 export default function SignUp() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
-  const [message, setMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [flashMessage, setFlashMessage] = useState(null);
+  const { register } = useContext(AuthContext);
+  const navigate = useNavigate();
 
   const validate = () => {
     const e = {};
@@ -18,19 +23,63 @@ export default function SignUp() {
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = (ev) => {
+  const handleSubmit = async (ev) => {
     ev.preventDefault();
     if (!validate()) return;
-    // Demo: replace with API call
-    console.log('Signing up', { email, password });
-    setMessage('Signed up successfully (demo).');
-    setEmail('');
-    setPassword('');
+
+    setIsLoading(true);
     setErrors({});
+    setFlashMessage(null);
+
+    try {
+      await register({ email, password });
+      setFlashMessage({
+        message: 'Account created successfully! Redirecting...',
+        type: 'success'
+      });
+      
+      // Redirect to dashboard after a short delay
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 1500);
+    } catch (error) {
+      setIsLoading(false);
+      const errorMessage = error.response?.data?.error || 'An error occurred during signup. Please try again.';
+      
+      // Handle specific error cases
+      if (error.response?.status === 409) {
+        setErrors({ email: 'An account with this email already exists' });
+      } else if (error.response?.status === 400) {
+        const backendError = error.response.data.error;
+        if (backendError.includes('email')) {
+          setErrors({ email: backendError });
+        } else if (backendError.includes('password')) {
+          setErrors({ password: backendError });
+        } else {
+          setFlashMessage({
+            message: errorMessage,
+            type: 'error'
+          });
+        }
+      } else {
+        setFlashMessage({
+          message: errorMessage,
+          type: 'error'
+        });
+      }
+    }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/30 to-slate-100 flex items-center justify-center px-4 py-12">
+      {/* Flash Message */}
+      {flashMessage && (
+        <FlashMessage
+          message={flashMessage.message}
+          type={flashMessage.type}
+          onClose={() => setFlashMessage(null)}
+        />
+      )}
       <div className="w-full max-w-md">
         {/* Card Container */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 md:p-10 border border-indigo-100/50">
@@ -136,24 +185,39 @@ export default function SignUp() {
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full bg-gradient-to-r from-indigo-600 to-slate-700 hover:from-indigo-700 hover:to-slate-800 text-white font-semibold py-3 px-4 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+              disabled={isLoading}
+              className={`w-full bg-gradient-to-r from-indigo-600 to-slate-700 hover:from-indigo-700 hover:to-slate-800 text-white font-semibold py-3 px-4 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
+                isLoading ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
             >
-              Sign up
+              {isLoading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg
+                    className="animate-spin h-5 w-5"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Creating account...
+                </span>
+              ) : (
+                'Sign up'
+              )}
             </button>
-
-            {/* Success Message */}
-            {message && (
-              <div 
-                role="status" 
-                aria-live="polite" 
-                className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800 flex items-center gap-2"
-              >
-                <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-                {message}
-              </div>
-            )}
           </form>
 
           {/* Footer */}
